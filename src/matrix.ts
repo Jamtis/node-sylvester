@@ -801,7 +801,7 @@ export class Matrix {
    * @throws A {@link DimensionalityMismatchError} if the matrix is not invertible
    * @diagram Matrix.inverse
    */
-  public inverse() {
+  public inverse(mod : number) {
     if (!this.isSquare()) {
       throw new DimensionalityMismatchError(
         `A matrix must be square to be inverted, provided a ${sizeStr(this)}`,
@@ -810,6 +810,9 @@ export class Matrix {
     if (this.isSingular()) {
       throw new DimensionalityMismatchError(`Cannot invert the current matrix (determinant=0)`);
     }
+    
+    const is_mod = mod == (mod | 0);
+    mod |= 0;
 
     const n = this.elements.length;
     let i = n;
@@ -831,7 +834,7 @@ export class Matrix {
       inverseElements[i] = [];
       divisor = M[i][i];
       for (p = 0; p < np; p++) {
-        newElement = M[i][p] / divisor;
+        newElement = is_mod ? M[i][p] * modInvert(divisor, mod) % mod : M[i][p] / divisor;
         els.push(newElement);
         // Shuffle off the current row of the right hand side into the results
         // array as it will not be modified by later runs through this loop
@@ -852,6 +855,36 @@ export class Matrix {
       }
     }
     return new Matrix(inverseElements);
+    
+    // https://stackoverflow.com/questions/26985808/calculating-the-modular-inverse-in-javascript
+    function modInvert(a : number, m : number) {
+      // validate inputs
+      [a, m] = [Number(a), Number(m)]
+      if (Number.isNaN(a) || Number.isNaN(m)) {
+        return NaN // invalid input
+      }
+      a = (a % m + m) % m
+      if (!a || m < 2) {
+        return NaN // invalid input
+      }
+      // find the gcd
+      const s = []
+      let b = m
+      while(b) {
+        [a, b] = [b, a % b]
+        s.push({a, b})
+      }
+      if (a !== 1) {
+        return NaN // inverse does not exists
+      }
+      // find the inverse
+      let x = 1
+      let y = 0
+      for(let i = s.length - 2; i >= 0; --i) {
+        [x, y] = [y,  x - y * Math.floor(s[i].a / s[i].b)]
+      }
+      return (y % m + m) % m;
+    }
   }
 
   /**
